@@ -9,8 +9,16 @@ import { mapChessBoard } from '@/lib/chessUtils';
 
 const chess = new Chess();
 
+// Properly declare initial state interface
+interface ChessState extends GameState {
+  selectedSquare: Position | null;
+  validMoves: Position[];
+  isAIThinking: boolean;
+}
+
 export const useChessGame = (gameMode: 'pvp' | 'pvai' = 'pvp') => {
   // State declarations
+  const [chess] = useState(() => typeof window !== 'undefined' ? new Chess() : null);
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [selectedSquare, setSelectedSquare] = useState<Position | null>(null);
   const [validMoves, setValidMoves] = useState<Position[]>([]);
@@ -18,6 +26,8 @@ export const useChessGame = (gameMode: 'pvp' | 'pvai' = 'pvp') => {
 
   // Update game state from chess.js
   const updateGameState = useCallback(() => {
+
+    if (!chess) return initialGameState;
 
     const fen = chess.fen();
     const fenParts = fen.split(' ');
@@ -48,10 +58,11 @@ export const useChessGame = (gameMode: 'pvp' | 'pvai' = 'pvp') => {
 
     setGameState(newState);  // Fixed state update
     return newState;
-  }, []);
+  }, [chess]);
 
   // Handle AI move
   const handleAIMove = useCallback(async (currentState: GameState) => {
+    if (!chess) return initialGameState;
     if (currentState.gameResult !== 'ongoing' || isAIThinking) return;
 
     setIsAIThinking(true);
@@ -68,10 +79,13 @@ export const useChessGame = (gameMode: 'pvp' | 'pvai' = 'pvp') => {
     } finally {
       setIsAIThinking(false);
     }
-  }, [gameMode, updateGameState]);
+  }, [gameMode, updateGameState, chess, isAIThinking]);
 
   // Handle square selection
   const handleSquareSelect = useCallback((position: Position) => {
+
+    if (!chess) return initialGameState;
+
     if (gameState.gameResult !== 'ongoing' ||
       (gameMode === 'pvai' && gameState.turn === PieceColor.White)) return;
 
@@ -88,10 +102,13 @@ export const useChessGame = (gameMode: 'pvp' | 'pvai' = 'pvp') => {
       setSelectedSquare(null);
       setValidMoves([]);
     }
-  }, [gameState, gameMode]);
+  }, [gameState, gameMode, chess]);
 
   // Handle piece move
   const handleMove = useCallback(async (toPosition: Position) => {
+
+    if (!chess) return initialGameState;
+
     if (!selectedSquare || gameState.gameResult !== 'ongoing') return;
 
     const fromSquare = positionToChessSquare(selectedSquare);
@@ -108,7 +125,7 @@ export const useChessGame = (gameMode: 'pvp' | 'pvai' = 'pvp') => {
         await handleAIMove(newState);
       }
     }
-  }, [selectedSquare, gameState, updateGameState, gameMode, handleAIMove]);
+  }, [selectedSquare, gameState, updateGameState, gameMode, handleAIMove, chess]);
 
   // Initialize game
   useEffect(() => {
@@ -127,11 +144,14 @@ export const useChessGame = (gameMode: 'pvp' | 'pvai' = 'pvp') => {
 
   // Reset game
   const resetGame = useCallback(() => {
+
+    if (!chess) return initialGameState;
+
     chess.reset();
     updateGameState();
     setSelectedSquare(null);
     setValidMoves([]);
-  }, [updateGameState]);
+  }, [updateGameState, chess]);
 
   // Convert position to chess.js notation
   const positionToChessSquare = (pos: Position): ChessJSSquare => {
@@ -146,6 +166,7 @@ export const useChessGame = (gameMode: 'pvp' | 'pvai' = 'pvp') => {
     validMoves,
     isAIThinking,
     handleSquareSelect,
+    setSelectedSquare,
     handleMove,
     resetGame
   };
